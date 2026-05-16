@@ -1,0 +1,942 @@
+import React, { useState, useRef } from 'react';
+import { 
+  User, 
+  MapPin, 
+  Wallet, 
+  Users, 
+  ChevronRight, 
+  CheckCircle2, 
+  Info, 
+  Phone, 
+  Sparkles,
+  ArrowLeft,
+  LayoutDashboard,
+  MessageCircle,
+  Lock,
+  Mail,
+  LogOut,
+  Edit3,
+  ThumbsUp,
+  Tag,
+  Camera
+} from 'lucide-react';
+
+const App = () => {
+  const [step, setStep] = useState('landing');
+  const [selectedBenefit, setSelectedBenefit] = useState(null);
+  
+  // 로그인 및 프로필 상태 관리
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userProfile, setUserProfile] = useState(null); 
+  
+  // 닉네임 및 프로필 이미지 상태 관리
+  const [userName, setUserName] = useState('회원');
+  const [profileImage, setProfileImage] = useState(null);
+
+  // 임시 프로필(수정 화면용) 상태 관리 및 파일 Ref (훅 에러 해결을 위해 최상단으로 이동)
+  const [tempName, setTempName] = useState('');
+  const [tempImg, setTempImg] = useState(null);
+  const fileInputRef = useRef(null);
+
+  // 문의하기 텍스트 상태 관리
+  const [inquiryText, setInquiryText] = useState('');
+
+  // 로그인 입력 폼 상태 관리
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState(false);
+  
+  // 상태 관리: 폼 입력값 및 에러 표시 여부
+  const [formData, setFormData] = useState({
+    birthYear: '',
+    region: '',
+    income: '',
+    familyCount: '',
+    struggle: []
+  });
+
+  const [errors, setErrors] = useState({
+    birthYear: false,
+    region: false,
+    income: false,
+    familyCount: false
+  });
+
+  // 추천된 혜택 상태 관리
+  const [recommendedBenefits, setRecommendedBenefits] = useState([]);
+
+  const struggles = [
+    { id: 'transport', label: '교통비', icon: '🚌' },
+    { id: 'education', label: '교육비', icon: '📚' },
+    { id: 'housing', label: '주거비', icon: '🏠' },
+    { id: 'medical', label: '의료비', icon: '🏥' },
+    { id: 'living', label: '생활비', icon: '🛒' },
+  ];
+
+  // 실제 조건 필터링을 위한 복지 데이터베이스
+  const welfareDB = [
+    {
+      id: 1,
+      title: '청년 월세 특별지원',
+      category: '주거',
+      min_age: 19,
+      max_age: 34,
+      target_keyword: ['housing'],
+      income_criteria: ['소득 없음', '100만원 이하', '100~200만원', '200~300만원', '300~400만원'],
+      region_limit: ['전국', '서울특별시'],
+      reason_template: '독립한 청년들의 주거비 부담을 덜어주는 맞춤형 혜택입니다.',
+      amount: '월 최대 20만원',
+      period: '12개월 간',
+      condition: '만 19세~34세 무주택 청년',
+      agency: '국토교통부',
+      documents: ['임대차계약서', '소득증빙서류', '통장사본'],
+      steps: ['온라인 신청(복지로)', '시·군·구청 심사', '지원금 지급'],
+      contact: '1600-0777'
+    },
+    {
+      id: 2,
+      title: '서울시 청년 대중교통비 지원',
+      category: '교통',
+      min_age: 19,
+      max_age: 24,
+      target_keyword: ['transport'],
+      income_criteria: ['제한없음', '소득 없음', '100만원 이하', '100~200만원', '200~300만원', '300~400만원', '400~600만원', '600만원 이상'],
+      region_limit: ['서울특별시'],
+      reason_template: '서울에 거주하는 20대 초반 청년들의 교통비 절감을 위한 정책입니다.',
+      amount: '연 최대 10만원 (T마일리지)',
+      period: '연 1회',
+      condition: '서울 거주 만 19~24세 청년',
+      agency: '서울특별시',
+      documents: ['본인 명의 교통카드 번호 등록'],
+      steps: ['청년몽땅정보통 신청', '사용금액 정산', '마일리지 환급'],
+      contact: '1600-0709'
+    },
+    {
+      id: 3,
+      title: '노인 기초연금',
+      category: '노후',
+      min_age: 65,
+      max_age: 999,
+      target_keyword: ['living', 'medical'],
+      income_criteria: ['소득 없음', '100만원 이하', '100~200만원', '200~300만원'],
+      region_limit: ['전국', '서울특별시'],
+      reason_template: '어르신들의 안정적인 노후 생활과 의료비, 생활비 보탬을 위한 연금입니다.',
+      amount: '월 최대 33만원',
+      period: '매월 지급',
+      condition: '만 65세 이상 소득하위 70%',
+      agency: '국민연금공단',
+      documents: ['통장사본', '신분증', '임대차계약서'],
+      steps: ['주소지 읍면동 사무소 신청', '소득 조사', '지급'],
+      contact: '1355'
+    },
+    {
+      id: 4,
+      title: '에너지 바우처',
+      category: '생활',
+      min_age: 0,
+      max_age: 999,
+      target_keyword: ['living'],
+      income_criteria: ['소득 없음', '100만원 이하'],
+      region_limit: ['전국', '서울특별시'],
+      reason_template: '생계비의 큰 부분을 차지하는 냉난방 요금을 직접적으로 덜어드립니다.',
+      amount: '연평균 20만원 차등지급',
+      period: '하절기/동절기',
+      condition: '기초생활수급자 및 특정 취약계층',
+      agency: '한국에너지공단',
+      documents: ['에너지바우처 신청서', '요금고지서'],
+      steps: ['동주민센터 신청', '바우처 지급', '요금 차감'],
+      contact: '1600-3190'
+    },
+    {
+      id: 5,
+      title: '긴급의료비 지원',
+      category: '의료',
+      min_age: 0,
+      max_age: 999,
+      target_keyword: ['medical'],
+      income_criteria: ['소득 없음', '100만원 이하', '100~200만원'],
+      region_limit: ['전국', '서울특별시'],
+      reason_template: '과도한 의료비로 겪는 경제적 부담을 정부가 긴급하게 덜어드립니다.',
+      amount: '최대 300만원 지원',
+      period: '심사 후 일시지급',
+      condition: '위기상황에 처한 저소득층 가구',
+      agency: '보건복지부',
+      documents: ['진단서', '병원비 영수증', '소득증빙서류'],
+      steps: ['보건복지상담센터 신청', '현장 확인 및 심사', '병원비 직접 결제'],
+      contact: '129'
+    },
+    {
+      id: 6,
+      title: '내일배움카드',
+      category: '교육',
+      min_age: 15,
+      max_age: 75,
+      target_keyword: ['education'],
+      income_criteria: ['제한없음', '소득 없음', '100만원 이하', '100~200만원', '200~300만원', '300~400만원', '400~600만원'],
+      region_limit: ['전국', '서울특별시'],
+      reason_template: '취업 및 역량 개발을 위한 교육비 지원이 필요한 분들께 적합합니다.',
+      amount: '인당 300~500만원 지원',
+      period: '5년간 사용 가능',
+      condition: '직업 훈련을 원하는 국민 누구나',
+      agency: '고용노동부',
+      documents: ['신분증'],
+      steps: ['HRD-Net 신청', '카드 발급', '훈련 수강'],
+      contact: '1350'
+    },
+    {
+      id: 7,
+      title: '초·중·고 교육비 지원',
+      category: '교육',
+      min_age: 7,
+      max_age: 18,
+      target_keyword: ['education'],
+      income_criteria: ['소득 없음', '100만원 이하', '100~200만원', '200~300만원'],
+      region_limit: ['전국', '서울특별시'],
+      reason_template: '자녀 교육비(방과후 수강권, 학비 등) 부담을 줄여주는 핵심 정책입니다.',
+      amount: '항목별 실비 지원',
+      period: '학기 중 지속',
+      condition: '기준중위소득 60% 이하 가구의 학생',
+      agency: '교육부',
+      documents: ['가족관계증명서', '소득증빙자료'],
+      steps: ['복지로 또는 주민센터 신청', '소득 재산 조사', '학교로 지원금 교부'],
+      contact: '1544-9654'
+    },
+    {
+      id: 8,
+      title: '알뜰교통카드 (K-패스)',
+      category: '교통',
+      min_age: 19,
+      max_age: 999,
+      target_keyword: ['transport'],
+      income_criteria: ['제한없음', '소득 없음', '100만원 이하', '100~200만원', '200~300만원', '300~400만원', '400~600만원', '600만원 이상'],
+      region_limit: ['전국', '서울특별시'],
+      reason_template: '대중교통을 자주 이용하는 모든 연령대의 교통비를 환급해 줍니다.',
+      amount: '이용금액의 20~53% 환급',
+      period: '상시 지원',
+      condition: '월 15회 이상 대중교통 이용자',
+      agency: '국토교통부',
+      documents: ['카드사 K-패스 카드 발급'],
+      steps: ['카드 발급', 'K-패스 앱 회원가입', '대중교통 이용 및 환급'],
+      contact: '031-420-6114'
+    }
+  ];
+
+  const birthYearOptions = Array.from({length: 2014 - 1940 + 1}, (_, i) => 2014 - i);
+
+  const handleBack = () => {
+    if (step === 'results') setStep('input');
+    else if (step === 'detail') setStep('results');
+    else if (step === 'editInfo') setStep('mypage');
+    else if (step === 'editProfile') setStep('mypage');
+    else setStep('landing');
+  };
+
+  const checkPrevious = (field) => {
+    const sequence = ['birthYear', 'region', 'income', 'familyCount'];
+    const idx = sequence.indexOf(field);
+    if (idx > 0) {
+      const prevField = sequence[idx - 1];
+      if (!formData[prevField]) {
+        setErrors(prev => ({ ...prev, [prevField]: true }));
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (value) {
+      setErrors(prev => ({ ...prev, [field]: false }));
+    }
+  };
+
+  const handleStruggleToggle = (id) => {
+    if (!userProfile && !formData.familyCount) {
+      setErrors(prev => ({ ...prev, familyCount: true }));
+      return;
+    }
+    setFormData(prev => ({
+      ...prev,
+      struggle: prev.struggle.includes(id) 
+        ? prev.struggle.filter(s => s !== id) 
+        : [...prev.struggle, id]
+    }));
+  };
+
+  const startAnalysis = () => {
+    const currentInfo = (isLoggedIn && userProfile) ? userProfile : formData;
+    const currentStruggles = formData.struggle;
+
+    if (isLoggedIn && !userProfile) {
+      setUserProfile({
+        birthYear: currentInfo.birthYear,
+        region: currentInfo.region,
+        income: currentInfo.income,
+        familyCount: currentInfo.familyCount
+      });
+    }
+
+    const age = 2026 - parseInt(currentInfo.birthYear);
+    const region = currentInfo.region;
+    const income = currentInfo.income;
+
+    const filtered = welfareDB.filter(benefit => {
+      if (age < benefit.min_age || age > benefit.max_age) return false;
+      if (!benefit.region_limit.includes('전국') && !benefit.region_limit.includes(region)) return false;
+      if (!benefit.income_criteria.includes('제한없음') && income !== '잘 모르겠어요') {
+        if (!benefit.income_criteria.includes(income)) return false;
+      }
+      if (currentStruggles.length > 0) {
+        const hasKeywordMatch = benefit.target_keyword.some(kw => currentStruggles.includes(kw));
+        if (!hasKeywordMatch) return false;
+      }
+      return true;
+    }).map(benefit => {
+      let score = 70;
+      const matchCount = benefit.target_keyword.filter(kw => currentStruggles.includes(kw)).length;
+      if (matchCount > 0) score += (matchCount * 15);
+      if (!benefit.region_limit.includes('전국') && benefit.region_limit.includes(region)) score += 10;
+      if (income === '소득 없음' || income === '100만원 이하') {
+         if(!benefit.income_criteria.includes('제한없음')) score += 5;
+      }
+      score = Math.min(score, 100);
+
+      const matched = ['나이 적합', '거주지 충족'];
+      if (matchCount > 0) matched.push('선택한 고민 일치');
+      if (benefit.income_criteria.includes(income)) matched.push('소득 충족');
+
+      return { ...benefit, priority_score: score, matchRate: score, matched_conditions: matched };
+    }).sort((a, b) => b.priority_score - a.priority_score);
+
+    setRecommendedBenefits(filtered);
+
+    setStep('analyzing');
+    setTimeout(() => {
+      window.scrollTo(0, 0);
+      setStep('results');
+    }, 2500);
+  };
+
+  const handleLogin = () => {
+    if (loginEmail === '6666@naver.com' && loginPassword === '1234') {
+      setIsLoggedIn(true);
+      setStep('landing');
+      setLoginError(false);
+      setLoginEmail('');
+      setLoginPassword('');
+    } else {
+      setLoginError(true);
+    }
+  };
+
+  const saveEditInfo = () => {
+    setUserProfile({
+      birthYear: formData.birthYear,
+      region: formData.region,
+      income: formData.income,
+      familyCount: formData.familyCount
+    });
+    setStep('mypage');
+  };
+
+  const submitInquiry = () => {
+    if (!inquiryText.trim()) return; 
+    setStep('inquiryComplete');
+    setInquiryText('');
+  };
+
+  // --- Components ---
+
+  const Header = ({ title, showBack = false }) => (
+    <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center sticky top-0 z-10">
+      {showBack && (
+        <button onClick={handleBack} className="mr-4">
+          <ArrowLeft className="w-6 h-6 text-slate-600" />
+        </button>
+      )}
+      <h1 className="text-xl font-bold text-slate-800">{title}</h1>
+    </div>
+  );
+
+  const LandingPage = () => (
+    <div className="flex flex-col min-h-screen bg-slate-50 overflow-y-auto">
+      <div className="px-8 pt-20 pb-12 bg-blue-600 text-white rounded-b-[40px] shadow-lg">
+        <div className="bg-white/20 w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+          <Sparkles className="w-10 h-10 text-white" />
+        </div>
+        <h2 className="text-3xl font-bold leading-tight mb-4">당신만을 위한<br />AI 복지 비서</h2>
+        <p className="text-blue-100 text-lg mb-8">몇 가지 정보만 입력하면<br />숨겨진 정부 혜택을 찾아드려요.</p>
+        <button onClick={() => setStep('input')} className="w-full py-4 bg-white text-blue-600 font-bold rounded-xl shadow-xl hover:bg-blue-50 transition-colors">내 맞춤 혜택 찾기</button>
+      </div>
+      <div className="px-6 py-10 pb-24">
+        <h3 className="text-lg font-bold text-slate-800 mb-6">이런 혜택을 찾을 수 있어요</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100"><div className="text-2xl mb-2">🏠</div><p className="font-semibold text-slate-700">주거 지원</p></div>
+          <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100"><div className="text-2xl mb-2">💸</div><p className="font-semibold text-slate-700">생활 안정</p></div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const LoginPage = () => (
+    <div className="flex flex-col min-h-screen bg-slate-50 overflow-y-auto">
+      <Header title="로그인 / 회원가입" showBack />
+      <div className="px-6 py-12 flex flex-col flex-1">
+        <h2 className="text-2xl font-bold mb-3 text-slate-800">환영합니다!</h2>
+        <p className="text-slate-500 mb-10 leading-relaxed">로그인하고 내 맞춤 혜택 정보를<br/>스마트하게 관리해보세요.</p>
+        <div className="space-y-4 mb-6">
+          <div className={`flex items-center bg-white border ${loginError ? 'border-red-400' : 'border-slate-200'} rounded-xl p-4 focus-within:border-blue-500`}>
+            <Mail className="w-5 h-5 text-slate-400 mr-3" />
+            <input type="email" placeholder="이메일 주소 (6666@naver.com)" className="w-full outline-none text-slate-700 bg-transparent" value={loginEmail} onChange={(e) => { setLoginEmail(e.target.value); if(loginError) setLoginError(false); }} />
+          </div>
+          <div className={`flex items-center bg-white border ${loginError ? 'border-red-400' : 'border-slate-200'} rounded-xl p-4 focus-within:border-blue-500`}>
+            <Lock className="w-5 h-5 text-slate-400 mr-3" />
+            <input type="password" placeholder="비밀번호 (1234)" className="w-full outline-none text-slate-700 bg-transparent" value={loginPassword} onChange={(e) => { setLoginPassword(e.target.value); if(loginError) setLoginError(false); }} onKeyDown={(e) => e.key === 'Enter' && handleLogin()} />
+          </div>
+        </div>
+        {loginError && <p className="text-red-500 text-sm font-bold mb-4 animate-pulse">이메일 또는 비밀번호가 일치하지 않습니다.</p>}
+        <div className="mt-auto space-y-3 pb-8">
+          <button onClick={handleLogin} className="w-full py-4 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-[0.98] transition-all">이메일로 시작하기</button>
+          <button className="w-full py-4 bg-yellow-400 text-slate-900 font-bold rounded-xl shadow-md opacity-70 cursor-not-allowed">카카오로 시작하기 (테스트 준비중)</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const MyPage = () => (
+    <div className="flex flex-col min-h-screen bg-slate-50 overflow-y-auto">
+      <Header title="마이페이지" />
+      <div className="px-6 py-8 pb-24">
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="relative w-16 h-16 bg-blue-100 rounded-full border-2 border-blue-200 flex items-center justify-center overflow-hidden shrink-0">
+              {profileImage ? (
+                <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <User className="w-8 h-8 text-blue-600" />
+              )}
+            </div>
+            <div className="flex-1">
+              <h2 className="text-xl font-bold text-slate-800">{userName}님</h2>
+              <button 
+                onClick={() => {
+                  setTempName(userName);
+                  setTempImg(profileImage);
+                  setStep('editProfile');
+                }} 
+                className="text-xs text-blue-600 bg-blue-50 px-3 py-1 rounded-md mt-1.5 font-medium hover:bg-blue-100 transition-colors inline-block"
+              >
+                프로필 수정
+              </button>
+            </div>
+          </div>
+          
+          <div className="border-t border-slate-100 pt-4 mt-2">
+            {userProfile ? (
+              <div className="space-y-3">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-bold text-blue-600">저장된 복지 맞춤 정보</span>
+                  <CheckCircle2 className="w-4 h-4 text-blue-600"/>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-xl text-sm text-slate-600 grid grid-cols-2 gap-2 mb-4">
+                  <p>나이: {userProfile.birthYear}년생 (만 {2026 - parseInt(userProfile.birthYear)}세)</p>
+                  <p>지역: {userProfile.region}</p>
+                  <p className="col-span-2">소득: {userProfile.income}</p>
+                  <p className="col-span-2">가족: {userProfile.familyCount}</p>
+                </div>
+                <button onClick={() => {
+                  setFormData({...formData, ...userProfile});
+                  setStep('editInfo');
+                }} className="w-full py-3 bg-blue-50 text-blue-700 font-bold rounded-xl flex items-center justify-center gap-2">
+                  <Edit3 className="w-4 h-4" /> 내 정보 수정하기
+                </button>
+              </div>
+            ) : (
+              <div className="py-4 text-center">
+                <p className="text-sm text-slate-500 mb-4">아직 입력된 맞춤 정보가 없습니다.<br/>혜택 찾기를 진행하면 정보가 저장됩니다.</p>
+                <button onClick={() => setStep('input')} className="w-full py-3 bg-blue-50 text-blue-700 font-bold rounded-xl">맞춤 정보 등록하러 가기</button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <button className="w-full py-4 px-5 bg-white text-left text-slate-700 font-medium rounded-xl shadow-sm border border-slate-100 flex justify-between items-center">
+            공지사항 <ChevronRight className="w-5 h-5 text-slate-300"/>
+          </button>
+          <button onClick={() => {
+            setIsLoggedIn(false);
+            setUserProfile(null);
+            setStep('landing');
+          }} className="w-full py-4 px-5 bg-white text-left text-red-500 font-medium rounded-xl shadow-sm border border-slate-100 flex justify-between items-center">
+            로그아웃 <LogOut className="w-5 h-5 text-red-300"/>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const EditProfilePage = () => {
+    const handleImageChange = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        setTempImg(URL.createObjectURL(file));
+      }
+    };
+
+    const saveProfile = () => {
+      setUserName(tempName || '회원');
+      setProfileImage(tempImg);
+      setStep('mypage');
+    };
+
+    return (
+      <div className="flex flex-col min-h-screen bg-slate-50 overflow-y-auto">
+        <Header title="프로필 수정" showBack />
+        <div className="px-6 py-10 flex flex-col items-center">
+          
+          <div className="relative mb-8">
+            <div className="w-28 h-28 bg-blue-100 rounded-full border-4 border-white shadow-md flex items-center justify-center overflow-hidden">
+              {tempImg ? (
+                <img src={tempImg} alt="Preview" className="w-full h-full object-cover" />
+              ) : (
+                <User className="w-12 h-12 text-blue-600" />
+              )}
+            </div>
+            <button 
+              onClick={() => fileInputRef.current && fileInputRef.current.click()}
+              className="absolute bottom-0 right-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center border-2 border-white shadow-sm hover:bg-blue-700"
+            >
+              <Camera className="w-4 h-4 text-white" />
+            </button>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleImageChange} 
+              accept="image/*" 
+              className="hidden" 
+            />
+          </div>
+
+          <div className="w-full space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">사용자 닉네임 (아이디)</label>
+              <input 
+                type="text" 
+                value={tempName}
+                onChange={(e) => setTempName(e.target.value)}
+                placeholder="닉네임을 입력하세요"
+                className="w-full bg-white border border-slate-200 rounded-xl p-4 outline-none text-slate-700 focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <button 
+            onClick={saveProfile}
+            className="w-full mt-12 py-4 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700"
+          >
+            프로필 저장하기
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const EditInfoPage = () => (
+    <div className="flex flex-col min-h-screen bg-slate-50 overflow-y-auto">
+      <Header title="복지 맞춤 정보 수정" showBack />
+      <div className="px-6 py-8 pb-32">
+        <p className="text-slate-600 mb-6">여기에 입력된 정보는 다음 맞춤 혜택 검색 시 자동으로 적용됩니다.</p>
+        <div className="space-y-6">
+          <div className="flex items-center bg-white border border-slate-200 rounded-xl p-4 focus-within:border-blue-500">
+            <User className="w-5 h-5 text-slate-400 mr-3" />
+            <select className="w-full outline-none text-slate-700 bg-transparent cursor-pointer" value={formData.birthYear} onChange={(e) => handleInputChange('birthYear', e.target.value)}>
+              <option value="">출생연도 선택</option>
+              {birthYearOptions.map(year => <option key={year} value={year}>{year}년</option>)}
+            </select>
+          </div>
+          <div className="flex items-center bg-white border border-slate-200 rounded-xl p-4 focus-within:border-blue-500">
+            <MapPin className="w-5 h-5 text-slate-400 mr-3" />
+            <select className="w-full outline-none text-slate-700 bg-transparent" value={formData.region} onChange={(e) => handleInputChange('region', e.target.value)}>
+              <option value="">거주 지역 선택</option>
+              <option value="서울특별시">서울특별시</option>
+            </select>
+          </div>
+          <div className="flex items-center bg-white border border-slate-200 rounded-xl p-4 focus-within:border-blue-500">
+            <Wallet className="w-5 h-5 text-slate-400 mr-3" />
+            <select className="w-full outline-none text-slate-700 bg-transparent" value={formData.income} onChange={(e) => handleInputChange('income', e.target.value)}>
+              <option value="">소득 구간 선택</option>
+              <option value="소득 없음">소득 없음</option>
+              <option value="100만원 이하">100만원 이하</option>
+              <option value="100~200만원">100~200만원</option>
+              <option value="200~300만원">200~300만원</option>
+              <option value="300~400만원">300~400만원</option>
+              <option value="400~600만원">400~600만원</option>
+              <option value="600만원 이상">600만원 이상</option>
+            </select>
+          </div>
+          <div className="flex items-center bg-white border border-slate-200 rounded-xl p-4 focus-within:border-blue-500">
+            <Users className="w-5 h-5 text-slate-400 mr-3" />
+            <select className="w-full outline-none text-slate-700 bg-transparent" value={formData.familyCount} onChange={(e) => handleInputChange('familyCount', e.target.value)}>
+              <option value="">가족 인원 선택</option>
+              <option value="1인가구">1인가구</option>
+              <option value="2인가구">2인가구</option>
+              <option value="3인가구">3인가구</option>
+              <option value="4인가구">4인가구</option>
+              <option value="5인 이상">5인 이상</option>
+            </select>
+          </div>
+        </div>
+        <button onClick={saveEditInfo} disabled={!formData.birthYear || !formData.region || !formData.income || !formData.familyCount} className={`w-full mt-10 py-4 font-bold rounded-xl shadow-lg transition-all ${(!formData.birthYear || !formData.region || !formData.income || !formData.familyCount) ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
+          정보 저장하기
+        </button>
+      </div>
+    </div>
+  );
+
+  const InquiryPage = () => (
+    <div className="flex flex-col min-h-screen bg-slate-50 overflow-y-auto">
+      <Header title="문의하기" />
+      <div className="px-6 py-8 pb-24">
+        <div className="bg-blue-50 p-5 rounded-2xl mb-8 flex items-start">
+          <MessageCircle className="w-6 h-6 text-blue-600 mr-3 mt-1 shrink-0" />
+          <div>
+            <h2 className="font-bold text-blue-800 mb-1">무엇을 도와드릴까요?</h2>
+            <p className="text-sm text-blue-600/80 leading-relaxed">서비스 이용 중 불편하신 점이나 궁금한 점을 남겨주시면 빠르게 답변해 드리겠습니다.</p>
+          </div>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-2">문의 유형</label>
+            <select className="w-full bg-white border border-slate-200 rounded-xl p-4 outline-none text-slate-700">
+              <option>이용 방법 문의</option>
+              <option>혜택 관련 문의</option>
+              <option>시스템 오류 신고</option>
+              <option>기타 의견</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-2">상세 내용</label>
+            <textarea 
+              className="w-full h-40 bg-white border border-slate-200 rounded-xl p-4 outline-none resize-none text-slate-700 focus:border-blue-500" 
+              placeholder="내용을 자세히 입력해주세요."
+              value={inquiryText}
+              onChange={(e) => setInquiryText(e.target.value)}
+            ></textarea>
+          </div>
+        </div>
+        <button 
+          onClick={submitInquiry}
+          disabled={!inquiryText.trim()}
+          className={`w-full mt-8 py-4 font-bold rounded-xl shadow-lg transition-colors ${
+            !inquiryText.trim() ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
+        >
+          문의 접수하기
+        </button>
+      </div>
+    </div>
+  );
+
+  const InquiryCompletePage = () => (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 px-8 text-center pb-20">
+      <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mb-6 shadow-inner">
+        <CheckCircle2 className="w-12 h-12 text-blue-600" />
+      </div>
+      <h2 className="text-2xl font-bold text-slate-800 mb-4">문의가 완료되었습니다!</h2>
+      <p className="text-slate-500 mb-10 leading-relaxed">
+        남겨주신 소중한 의견은<br/>담당자가 확인 후 빠르게 답변해 드리겠습니다.
+      </p>
+      <button 
+        onClick={() => setStep('landing')}
+        className="w-full py-4 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 active:scale-[0.98] transition-transform"
+      >
+        홈화면으로 돌아가기
+      </button>
+    </div>
+  );
+
+  const InputPage = () => {
+    const hasProfile = isLoggedIn && userProfile;
+
+    return (
+      <div className="flex flex-col min-h-screen bg-slate-50 overflow-y-auto">
+        <Header title="정보 입력" showBack />
+        <div className="px-6 py-8 pb-32">
+          
+          {hasProfile ? (
+            <div className="bg-white border-2 border-blue-100 rounded-2xl p-5 mb-8 shadow-sm">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-bold text-blue-600 flex items-center"><CheckCircle2 className="w-5 h-5 mr-1" />저장된 내 정보로 분석</h3>
+                <button onClick={() => setStep('mypage')} className="text-xs text-slate-400 underline hover:text-slate-600">정보 수정</button>
+              </div>
+              <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                {userProfile.birthYear}년생(만 {2026 - parseInt(userProfile.birthYear)}세) · {userProfile.region} · {userProfile.familyCount}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-8 mb-8">
+              <section>
+                <div className="flex justify-between items-end mb-4">
+                  <h3 className="text-sm font-bold text-blue-600 uppercase tracking-wider">기본 정보</h3>
+                  {errors.birthYear && <span className="text-[11px] text-red-500 font-bold animate-pulse">필수 선택 항목입니다</span>}
+                </div>
+                <div className="space-y-4">
+                  <div className={`flex items-center bg-white border rounded-xl p-4 transition-all ${errors.birthYear ? 'border-red-300 bg-red-50' : 'border-slate-200 focus-within:border-blue-500'}`}>
+                    <User className="w-5 h-5 text-slate-400 mr-3" />
+                    <select className="w-full outline-none text-slate-700 bg-transparent cursor-pointer" value={formData.birthYear} onChange={(e) => handleInputChange('birthYear', e.target.value)}>
+                      <option value="">출생연도 선택</option>
+                      {birthYearOptions.map(year => <option key={year} value={year}>{year}년</option>)}
+                    </select>
+                  </div>
+                  <div className="relative">
+                    <div className="flex justify-between items-end mb-1 h-4">
+                      {errors.region && <span className="text-[11px] text-red-500 font-bold animate-pulse">필수 선택 항목입니다</span>}
+                    </div>
+                    <div className={`flex items-center bg-white border rounded-xl p-4 transition-all ${!formData.birthYear ? 'opacity-50' : ''} ${errors.region ? 'border-red-300 bg-red-50' : 'border-slate-200 focus-within:border-blue-500'}`} onClick={() => checkPrevious('region')}>
+                      <MapPin className="w-5 h-5 text-slate-400 mr-3" />
+                      <select className="w-full outline-none text-slate-700 bg-transparent cursor-pointer" value={formData.region} onChange={(e) => handleInputChange('region', e.target.value)} disabled={!formData.birthYear}>
+                        <option value="">거주 지역 선택</option>
+                        <option value="서울특별시">서울특별시</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="space-y-6">
+                <div className="relative">
+                  <div className="flex justify-between items-end mb-3">
+                    <h3 className="text-sm font-bold text-blue-600 uppercase tracking-wider">가구 경제 상황</h3>
+                    {errors.income && <span className="text-[11px] text-red-500 font-bold animate-pulse">필수 선택 항목입니다</span>}
+                  </div>
+                  <p className="text-slate-700 font-semibold mb-3">현재 가구 월 소득은 어느 정도인가요?</p>
+                  <div className={`flex items-center bg-white border rounded-xl p-4 transition-all ${!formData.region ? 'opacity-50' : ''} ${errors.income ? 'border-red-300 bg-red-50' : 'border-slate-200 focus-within:border-blue-500'}`} onClick={() => checkPrevious('income')}>
+                    <Wallet className="w-5 h-5 text-slate-400 mr-3" />
+                    <select className="w-full outline-none text-slate-700 bg-transparent cursor-pointer" value={formData.income} onChange={(e) => handleInputChange('income', e.target.value)} disabled={!formData.region}>
+                      <option value="">소득 구간 선택</option>
+                      <option value="소득 없음">소득 없음</option>
+                      <option value="100만원 이하">100만원 이하</option>
+                      <option value="100~200만원">100~200만원</option>
+                      <option value="200~300만원">200~300만원</option>
+                      <option value="300~400만원">300~400만원</option>
+                      <option value="400~600만원">400~600만원</option>
+                      <option value="600만원 이상">600만원 이상</option>
+                      <option value="잘 모르겠어요">잘 모르겠어요</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="relative">
+                  <div className="flex justify-between items-end mb-3">
+                    <p className="text-slate-700 font-semibold">함께 거주하는 가족 수는 몇 명인가요?</p>
+                    {errors.familyCount && <span className="text-[11px] text-red-500 font-bold animate-pulse">필수 선택 항목입니다</span>}
+                  </div>
+                  <div className={`flex items-center bg-white border rounded-xl p-4 transition-all ${!formData.income ? 'opacity-50' : ''} ${errors.familyCount ? 'border-red-300 bg-red-50' : 'border-slate-200 focus-within:border-blue-500'}`} onClick={() => checkPrevious('familyCount')}>
+                    <Users className="w-5 h-5 text-slate-400 mr-3" />
+                    <select className="w-full outline-none text-slate-700 bg-transparent cursor-pointer" value={formData.familyCount} onChange={(e) => handleInputChange('familyCount', e.target.value)} disabled={!formData.income}>
+                      <option value="">가족 인원 선택</option>
+                      <option value="1인가구">1인가구</option>
+                      <option value="2인가구">2인가구</option>
+                      <option value="3인가구">3인가구</option>
+                      <option value="4인가구">4인가구</option>
+                      <option value="5인 이상">5인 이상</option>
+                    </select>
+                  </div>
+                </div>
+              </section>
+            </div>
+          )}
+
+          <section className={!hasProfile && !formData.familyCount ? 'opacity-50 pointer-events-none' : ''}>
+            <h3 className="text-sm font-bold text-blue-600 mb-4 uppercase tracking-wider">현재 겪는 어려움 (중복 선택)</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {struggles.map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => handleStruggleToggle(s.id)}
+                  className={`p-4 rounded-2xl border text-left transition-all ${
+                    formData.struggle.includes(s.id) ? 'bg-blue-50 border-blue-500 shadow-sm' : 'bg-white border-slate-200'
+                  }`}
+                >
+                  <span className="text-2xl mb-2 block">{s.icon}</span>
+                  <span className={`font-semibold ${formData.struggle.includes(s.id) ? 'text-blue-700' : 'text-slate-600'}`}>{s.label}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <button 
+            onClick={startAnalysis}
+            disabled={!hasProfile && (!formData.birthYear || !formData.region || !formData.income || !formData.familyCount)}
+            className={`w-full mt-10 py-4 font-bold rounded-xl shadow-lg transition-all ${
+              (!hasProfile && (!formData.birthYear || !formData.region || !formData.income || !formData.familyCount)) 
+              ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98]'
+            }`}
+          >
+            AI 맞춤 분석 시작하기
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const AnalyzingPage = () => (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-white px-8 text-center">
+      <div className="relative mb-10">
+        <div className="w-24 h-24 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+        <div className="absolute inset-0 flex items-center justify-center"><Sparkles className="w-8 h-8 text-blue-600" /></div>
+      </div>
+      <h2 className="text-2xl font-bold text-slate-800 mb-3">맞춤 혜택을 분석 중입니다</h2>
+      <p className="text-slate-500 leading-relaxed">
+        {userProfile ? '저장된 회원 정보와 ' : '입력하신 정보와 ' }
+        공공데이터를 대조하여<br />가장 적합한 복지 서비스를 찾고 있어요.
+      </p>
+    </div>
+  );
+
+  const ResultsPage = () => (
+    <div className="flex flex-col min-h-screen bg-slate-50 overflow-y-auto">
+      <Header title="AI 추천 결과" showBack />
+      <div className="px-6 py-6 pb-24">
+        <div className="bg-blue-600 rounded-2xl p-6 text-white mb-8 shadow-md relative overflow-hidden">
+          <div className="relative z-10">
+            <p className="text-blue-100 text-sm mb-1 font-medium">분석 완료!</p>
+            <h3 className="text-xl font-bold">조건에 맞는 <span className="text-yellow-300">{recommendedBenefits.length}건</span> 발견</h3>
+            <p className="text-xs text-blue-100 mt-2">입력하신 조건과 일치하는 혜택만 선별했습니다.</p>
+          </div>
+          <Sparkles className="absolute -bottom-2 -right-2 w-24 h-24 text-white/10" />
+        </div>
+
+        {recommendedBenefits.length > 0 ? (
+          <div className="space-y-4">
+            {recommendedBenefits.map((benefit, index) => (
+              <div key={benefit.id} onClick={() => { setSelectedBenefit(benefit); setStep('detail'); }} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:border-blue-300 transition-all cursor-pointer group relative">
+                <div className="flex justify-between items-start mb-3">
+                  <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${index === 0 ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+                    {index + 1}순위 추천
+                  </span>
+                  <span className="text-blue-600 font-bold text-sm">{benefit.matchRate}% 적합</span>
+                </div>
+                <h5 className="text-lg font-bold text-slate-800 mb-3">{benefit.title}</h5>
+                
+                <div className="bg-slate-50 rounded-xl p-3 mb-4">
+                  <div className="flex items-start mb-2">
+                    <ThumbsUp className="w-4 h-4 text-blue-600 mr-2 mt-0.5 shrink-0" />
+                    <p className="text-xs text-slate-700 font-medium leading-relaxed">{benefit.reason_template}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {benefit.matched_conditions.map((cond, idx) => (
+                      <span key={idx} className="bg-white border border-slate-200 text-slate-500 text-[10px] px-2 py-0.5 rounded-full flex items-center">
+                        <Tag className="w-3 h-3 mr-1" />{cond}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between border-t border-slate-50 pt-4">
+                  <div>
+                      <span className="text-[10px] text-slate-400 block">지원 내용</span>
+                      <span className="text-sm font-bold text-slate-700">{benefit.amount}</span>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-blue-600" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+           <div className="text-center py-10">
+              <div className="text-4xl mb-4">🥲</div>
+              <h3 className="font-bold text-slate-700 mb-2">조건에 딱 맞는 혜택이 없어요</h3>
+              <p className="text-sm text-slate-500">선택하신 어려움(분야)을 변경하거나<br/>입력 정보를 수정해 보세요.</p>
+              <button onClick={() => setStep('input')} className="mt-6 px-6 py-2 bg-blue-100 text-blue-700 font-bold rounded-lg text-sm">조건 다시 선택하기</button>
+           </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const DetailPage = () => (
+    <div className="flex flex-col min-h-screen bg-slate-50 overflow-y-auto">
+      <Header title="혜택 상세" showBack />
+      <div className="bg-white px-6 py-8 border-b border-slate-100">
+        <div className="flex items-center text-blue-600 text-sm font-bold mb-3"><span className="bg-blue-50 px-2 py-1 rounded mr-2">{selectedBenefit.category}</span><span>{selectedBenefit.agency}</span></div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-2">{selectedBenefit.title}</h2>
+        <p className="text-slate-600 text-sm mb-6">{selectedBenefit.condition}</p>
+        
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-slate-50 p-4 rounded-xl"><p className="text-xs text-slate-400 mb-1">지원 금액/내용</p><p className="font-bold text-slate-800 text-sm">{selectedBenefit.amount}</p></div>
+          <div className="bg-slate-50 p-4 rounded-xl"><p className="text-xs text-slate-400 mb-1">지원 기간</p><p className="font-bold text-slate-800 text-sm">{selectedBenefit.period}</p></div>
+        </div>
+      </div>
+      <div className="p-6 space-y-6 pb-32">
+        <section>
+          <div className="flex items-center mb-4"><CheckCircle2 className="w-5 h-5 text-blue-600 mr-2" /><h3 className="font-bold text-slate-800">신청 방법</h3></div>
+          <div className="space-y-4">
+            {selectedBenefit.steps.map((s, i) => (
+              <div key={i} className="flex items-start">
+                <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold mr-3 mt-0.5 shrink-0">{i+1}</div>
+                <p className="text-slate-600 text-sm py-0.5">{s}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section>
+          <div className="flex items-center mb-4"><Info className="w-5 h-5 text-blue-600 mr-2" /><h3 className="font-bold text-slate-800">필요 서류</h3></div>
+          <div className="flex flex-wrap gap-2">
+            {selectedBenefit.documents.map((doc, idx) => (
+              <span key={idx} className="bg-white border border-slate-200 px-3 py-2 rounded-lg text-sm text-slate-600 shadow-sm">
+                📄 {doc}
+              </span>
+            ))}
+          </div>
+        </section>
+        <section>
+            <div className="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm">
+                <div>
+                    <p className="text-xs text-slate-400 mb-1">담당 기관 문의</p>
+                    <p className="font-bold text-slate-700">{selectedBenefit.contact}</p>
+                </div>
+                <a href={`tel:${selectedBenefit.contact}`} className="bg-blue-600 p-3 rounded-lg text-white shadow-md active:scale-95"><Phone className="w-5 h-5"/></a>
+            </div>
+        </section>
+      </div>
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-slate-100 flex gap-3"><button className="flex-1 py-4 bg-blue-600 text-white font-bold rounded-xl shadow-lg active:scale-[0.98]">신청하기</button></div>
+    </div>
+  );
+
+  return (
+    <div className="max-w-md mx-auto h-screen bg-white font-sans text-slate-900 shadow-2xl overflow-hidden flex flex-col">
+      <div className="flex-1 overflow-y-auto relative">
+        {step === 'landing' && LandingPage()}
+        {step === 'input' && InputPage()}
+        {step === 'analyzing' && AnalyzingPage()}
+        {step === 'results' && ResultsPage()}
+        {step === 'detail' && DetailPage()}
+        {step === 'login' && LoginPage()}
+        {step === 'mypage' && MyPage()}
+        {step === 'editProfile' && EditProfilePage()}
+        {step === 'editInfo' && EditInfoPage()}
+        {step === 'inquiry' && InquiryPage()}
+        {step === 'inquiryComplete' && InquiryCompletePage()}
+      </div>
+      
+      {/* Navigation Bar */}
+      {(['landing', 'input', 'results', 'mypage', 'inquiry'].includes(step)) && (
+        <div className="border-t border-slate-100 bg-white flex justify-around py-3 px-6 z-20 shrink-0">
+          <button onClick={() => setStep('landing')} className={`flex flex-col items-center gap-1 ${step === 'landing' ? 'text-blue-600' : 'text-slate-400'}`}>
+            <LayoutDashboard className="w-6 h-6" /><span className="text-[10px] font-bold">홈</span>
+          </button>
+          <button onClick={() => setStep('inquiry')} className={`flex flex-col items-center gap-1 ${step === 'inquiry' ? 'text-blue-600' : 'text-slate-400'}`}>
+            <MessageCircle className="w-6 h-6" /><span className="text-[10px] font-bold">문의</span>
+          </button>
+          <button onClick={() => setStep(isLoggedIn ? 'mypage' : 'login')} className={`flex flex-col items-center gap-1 ${['login', 'mypage', 'editInfo', 'editProfile'].includes(step) ? 'text-blue-600' : 'text-slate-400'}`}>
+            <User className="w-6 h-6" /><span className="text-[10px] font-bold">마이</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default App;
